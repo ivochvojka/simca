@@ -31,6 +31,10 @@
   .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
   .actions button { border-radius: .5rem; padding: .6rem .9rem; border: 1px solid #9b718e; color: inherit; background: transparent; }
   .actions .primary { background: #f1b8cc; border-color: #f1b8cc; color: #352033; font-weight: 700; }
+  .safe { margin-top: 1.4rem; padding: 1rem; border: 1px solid #9b718e; border-radius: .75rem; background: #211525; }
+  .safe label { display: block; margin: .75rem 0 .35rem; }
+  #code { width: 8rem; max-width: 100%; padding: .55rem .65rem; border: 1px solid #9b718e; border-radius: .5rem; background: #160e19; color: inherit; font: 1.4rem ui-monospace, monospace; letter-spacing: .3em; }
+  #code:focus-visible { outline: 3px solid #ffd0e5; outline-offset: 3px; }
   button:focus-visible, summary:focus-visible { outline: 3px solid #ffd0e5; outline-offset: 3px; }
   #status { min-height: 1.5em; color: #ffd0e5; }
   details { margin-top: .75rem; }
@@ -45,7 +49,7 @@
   <header>
     <div class="envelope" aria-hidden="true"><span>♥</span></div>
     <h1>Tajemství v obálce</h1>
-    <p>Čtyři kartičky ukrývají kód k otevření obálky.</p>
+    <p>Seřaď kartičky podle indicií a číslice zleva doprava zadej do trezoru.</p>
   </header>
 
   <section class="panel" id="puzzle" aria-labelledby="clues">
@@ -58,7 +62,6 @@
     <p class="instructions" id="instructions">Přetáhni kartičku na jiné místo nebo klepni na dvě kartičky a prohoď je.</p>
     <div class="cards" id="cards" role="group" aria-label="Kartičky s kódem" aria-describedby="instructions"></div>
     <div class="actions">
-      <button class="primary" id="check" type="button">Otevřít obálku</button>
       <button id="reset" type="button">Vrátit kartičky</button>
     </div>
     <p id="status" role="status"></p>
@@ -66,6 +69,13 @@
       <summary>Nápověda</summary>
       <p>Zkus brát Klíč a Srdce jako jednu kartičku.</p>
     </details>
+    <form class="safe" id="safe" aria-labelledby="safe-title" novalidate>
+      <h2 id="safe-title">Trezor</h2>
+      <label for="code">Čtyřmístný kód</label>
+      <input id="code" type="text" inputmode="numeric" autocomplete="off" maxlength="4" aria-describedby="safe-status">
+      <div class="actions"><button class="primary" type="submit">Odemknout trezor</button></div>
+      <p id="safe-status" role="status"></p>
+    </form>
   </section>
 
   <section class="panel" id="gift" aria-labelledby="gift-title" hidden>
@@ -88,6 +98,8 @@
   const gift = document.querySelector('#gift');
   const status = document.querySelector('#status');
   const hint = document.querySelector('#hint');
+  const code = document.querySelector('#code');
+  const safeStatus = document.querySelector('#safe-status');
   const buttons = {};
   let order = [...initialOrder];
   let selected = null;
@@ -158,9 +170,20 @@
     render();
   }
 
-  document.querySelector('#check').addEventListener('click', () => {
-    if (order.map(id => cards[id].digit).join('') !== solution) {
-      status.textContent = 'Obálka je pořád zamčená. Zkus jiné pořadí.';
+  code.addEventListener('input', () => {
+    code.value = code.value.replace(/[^0-9]/g, '');
+    code.removeAttribute('aria-invalid');
+    safeStatus.textContent = '';
+  });
+
+  document.querySelector('#safe').addEventListener('submit', event => {
+    event.preventDefault();
+    if (code.value !== solution) {
+      code.setAttribute('aria-invalid', 'true');
+      safeStatus.textContent = code.value.length === 4
+        ? 'Trezor je pořád zamčený. Zkus jiný kód.'
+        : 'Zadej všechny čtyři číslice.';
+      code.focus();
       return;
     }
     puzzle.hidden = true;
@@ -175,6 +198,9 @@
 
   document.querySelector('#replay').addEventListener('click', () => {
     reset();
+    code.value = '';
+    code.removeAttribute('aria-invalid');
+    safeStatus.textContent = '';
     hint.open = false;
     gift.hidden = true;
     puzzle.hidden = false;
