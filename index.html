@@ -19,15 +19,7 @@
   .envelope::before { content: ""; position: absolute; z-index: -1; inset: 0; background: #8c8c8c; clip-path: polygon(0 0, 100% 0, 50% 69%); }
   .envelope span { border-radius: 50%; padding: .25rem .48rem; margin-top: .6rem; background: #a82029; color: #ffffff; }
   .panel { background: #202020; border: 1px solid #484848; border-radius: 1rem; padding: clamp(1rem, 4vw, 1.8rem); }
-  ul { padding-left: 1.3rem; margin: .8rem 0 1.5rem; }
-  li + li { margin-top: .25rem; }
-  .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(.3rem, 1.8vw, .65rem); margin-top: .8rem; }
   button { font: inherit; cursor: pointer; }
-  .card { padding: .65rem .12rem; border: 2px solid transparent; border-radius: .65rem; background: #303030; color: #f5f5f5; display: grid; justify-items: center; gap: .05rem; cursor: grab; }
-  .card[aria-pressed=true] { border-color: #ff6269; background: #54282b; }
-  .symbol { font-size: 1.6rem; line-height: 1; }
-  .digit { font: bold 1.8rem Georgia, serif; }
-  .name { font-size: .875rem; }
   .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
   .actions button { border-radius: .5rem; padding: .6rem .9rem; border: 1px solid #787878; color: inherit; background: transparent; }
   .actions .primary { background: #b6232d; border-color: #b6232d; color: #ffffff; font-weight: 700; }
@@ -50,16 +42,15 @@
   .safe .actions .primary { border-color: #ef626a; background: linear-gradient(#c72d36, #a51b26); color: #ffffff; box-shadow: 0 2px 0 #66121a; }
   #safe-status { min-height: 1.5em; color: #ff969b; }
   button:focus-visible { outline: 3px solid #ff969b; outline-offset: 3px; }
-  #status { min-height: 1.5em; color: #ff969b; }
-  .flashlight { margin-top: 1.25rem; border-block: 1px solid #555; padding: .75rem 0; }
-  .flashlight summary { cursor: pointer; font-weight: 700; }
-  .flashlight summary::marker { color: #ff6269; }
-  .flashlight summary:focus-visible, .photo:focus-visible { outline: 3px solid #ff969b; outline-offset: 3px; }
-  .photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; margin-top: .85rem; }
-  .photo { position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 3 / 2; border: 1px solid #777; border-radius: .5rem; background: #222; touch-action: none; user-select: none; cursor: crosshair; }
+  .photo-nav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: .5rem; margin: .9rem 0; }
+  .photo-nav button { padding: .55rem .5rem; border: 1px solid #787878; border-radius: .45rem; color: inherit; background: #292929; }
+  .photo-nav button:disabled { opacity: .45; cursor: default; }
+  .photo-nav span { font-variant-numeric: tabular-nums; color: #cacaca; }
+  .photo:focus-visible { outline: 3px solid #ff969b; outline-offset: 3px; }
+  .photo { position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 4 / 5; max-height: 29rem; border: 1px solid #777; border-radius: .5rem; background: #222; touch-action: none; user-select: none; cursor: crosshair; }
   .photo img { display: block; width: 100%; height: 100%; object-fit: cover; filter: grayscale(1); pointer-events: none; }
   .photo::after { content: ""; position: absolute; z-index: 1; inset: 0; background: #090909d9; pointer-events: none; }
-  .photo.lit::after { background: radial-gradient(circle 66px at var(--beam-x) var(--beam-y), transparent 63%, #090909d9 100%); }
+  .photo.lit::after { background: radial-gradient(circle 43px at var(--beam-x) var(--beam-y), transparent 67%, #090909d9 100%); }
   .mark { position: absolute; z-index: 2; left: var(--x); top: var(--y); transform: translate(-50%, -50%); display: grid; justify-items: center; gap: .2rem; min-width: 2.3rem; padding: .25rem; border: 1px solid #ff777e; border-radius: .3rem; background: #151515; color: #fff; font: 700 1.25rem/1 ui-monospace, monospace; pointer-events: none; }
   .mark[hidden] { display: none; }
   .mark span { color: #ff969b; font-size: .64rem; }
@@ -74,39 +65,38 @@
   <header>
     <div class="envelope" aria-hidden="true"><span>♥</span></div>
     <h1>Tajemství v obálce</h1>
-    <p>Najdi čtyřmístný kód pomocí kartiček nebo baterky a nastav ho na trezoru.</p>
+    <p>Posviť si na čtyři fotky a najdi kód k trezoru.</p>
   </header>
 
-  <section class="panel" id="puzzle" aria-labelledby="clues">
-    <h2 id="clues" tabindex="-1">Indicie</h2>
-    <ul>
-      <li>Klíč leží hned vlevo od Srdce.</li>
-      <li>Měsíc je někde vlevo od Klíče.</li>
-      <li>Hvězda nesousedí s Měsícem.</li>
-    </ul>
-    <p class="instructions" id="instructions">Přetáhni kartičku na jiné místo nebo klepni na dvě kartičky a prohoď je. Kód pak přečti zleva doprava.</p>
-    <div class="cards" id="cards" role="group" aria-label="Kartičky s kódem" aria-describedby="instructions"></div>
-    <div class="actions">
-      <button id="reset" type="button">Vrátit kartičky</button>
-    </div>
-    <p id="status" role="status"></p>
-    <details class="flashlight" id="flashlight">
-      <summary>Hledat kód baterkou</summary>
-      <p class="instructions" id="flashlight-help">Přejeď prstem nebo myší po obou fotkách. Každá skrývá dvě číslice. Počet teček určuje místo v kódu. Baterkou můžeš hýbat i šipkami na klávesnici.</p>
+  <section class="panel" id="puzzle" aria-labelledby="flashlight-title">
+    <section id="flashlight" aria-labelledby="flashlight-title">
+      <h2 id="flashlight-title" tabindex="-1">Baterka</h2>
+      <p class="instructions" id="flashlight-help">Přejížděj po fotce prstem, myší nebo šipkami. Každá fotka skrývá jednu číslici. Počet teček určuje její místo v kódu.</p>
+      <nav class="photo-nav" aria-label="Výběr fotky">
+        <button id="previous-photo" type="button" disabled>Předchozí</button>
+        <span id="photo-count" role="status">1 / 4</span>
+        <button id="next-photo" type="button">Další</button>
+      </nav>
       <div class="photos">
-        <div class="photo" tabindex="0" role="group" aria-label="Fotka horského jezera" aria-describedby="flashlight-help">
+        <div class="photo" tabindex="0" role="group" aria-label="Horské jezero" aria-describedby="flashlight-help">
           <img src="assets/mountain-lake.jpg" alt="" draggable="false">
           <div class="mark" data-slot="1" style="--x: 72%; --y: 31%" hidden aria-hidden="true"><b></b><span>●●</span></div>
-          <div class="mark" data-slot="3" style="--x: 24%; --y: 73%" hidden aria-hidden="true"><b></b><span>●●●●</span></div>
         </div>
-        <div class="photo" tabindex="0" role="group" aria-label="Fotka hor v mracích" aria-describedby="flashlight-help">
+        <div class="photo" tabindex="0" role="group" aria-label="Hory v mracích" aria-describedby="flashlight-help" hidden>
           <img src="assets/cloudy-peaks.jpg" alt="" draggable="false">
           <div class="mark" data-slot="0" style="--x: 75%; --y: 72%" hidden aria-hidden="true"><b></b><span>●</span></div>
+        </div>
+        <div class="photo" tabindex="0" role="group" aria-label="Borovice u jezera" aria-describedby="flashlight-help" hidden>
+          <img src="assets/pine-lake.jpg" alt="" draggable="false">
+          <div class="mark" data-slot="3" style="--x: 24%; --y: 73%" hidden aria-hidden="true"><b></b><span>●●●●</span></div>
+        </div>
+        <div class="photo" tabindex="0" role="group" aria-label="Odraz horského štítu" aria-describedby="flashlight-help" hidden>
+          <img src="assets/alpine-reflection.jpg" alt="" draggable="false">
           <div class="mark" data-slot="2" style="--x: 23%; --y: 25%" hidden aria-hidden="true"><b></b><span>●●●</span></div>
         </div>
       </div>
       <p role="status">Nalezené číslice <span class="found-code" id="found-code">＿ ＿ ＿ ＿</span></p>
-    </details>
+    </section>
     <form class="safe" id="safe" aria-labelledby="safe-title" novalidate>
       <h2 id="safe-title">Trezor</h2>
       <p class="instructions" id="wheel-help">Číslice nastav tažením nahoru nebo dolů.</p>
@@ -127,108 +117,49 @@
   </section>
 </main>
 <script>
-  const cards = {
-    star: { name: 'Hvězda', symbol: '✦', digit: '9' },
-    heart: { name: 'Srdce', symbol: '♥', digit: '4' },
-    moon: { name: 'Měsíc', symbol: '☾', digit: '7' },
-    key: { name: 'Klíč', symbol: '⚿', digit: '2' },
-  };
-  const initialOrder = ['star', 'heart', 'moon', 'key'];
   const solution = '7249';
   const flashlight = document.querySelector('#flashlight');
   const foundCode = document.querySelector('#found-code');
   const found = new Set();
-  const board = document.querySelector('#cards');
   const puzzle = document.querySelector('#puzzle');
   const gift = document.querySelector('#gift');
-  const status = document.querySelector('#status');
   const wheels = document.querySelector('#wheels');
   const safeStatus = document.querySelector('#safe-status');
-  const buttons = {};
-  let order = [...initialOrder];
-  let selected = null;
-  let dragging = null;
+  const photos = Array.from(flashlight.querySelectorAll('.photo'));
+  const previousPhoto = document.querySelector('#previous-photo');
+  const nextPhoto = document.querySelector('#next-photo');
+  const photoCount = document.querySelector('#photo-count');
+  let currentPhoto = 0;
 
-  for (const [id, card] of Object.entries(cards)) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'card';
-    button.draggable = true;
-    button.innerHTML = `<span class="symbol" aria-hidden="true">${card.symbol}</span><span class="digit">${card.digit}</span><span class="name">${card.name}</span>`;
-    buttons[id] = button;
-
-    button.addEventListener('click', () => {
-      if (selected !== null && selected !== id) {
-        const first = order.indexOf(selected);
-        const second = order.indexOf(id);
-        [order[first], order[second]] = [order[second], order[first]];
-        selected = null;
-        render(id);
-        return;
-      }
-      selected = selected === id ? null : id;
-      updateSelection();
-      status.textContent = selected ? 'Vyber kartičku, se kterou ji chceš prohodit.' : '';
-    });
-
-    button.addEventListener('dragstart', event => {
-      dragging = id;
-      event.dataTransfer.setData('text/plain', id);
-      event.dataTransfer.effectAllowed = 'move';
-    });
-    button.addEventListener('dragend', () => { dragging = null; });
-    button.addEventListener('dragover', event => {
-      if (dragging && dragging !== id) {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
-      }
-    });
-    button.addEventListener('drop', event => {
-      if (!dragging || dragging === id) return;
-      event.preventDefault();
-      const destination = order.indexOf(id);
-      order.splice(order.indexOf(dragging), 1);
-      order.splice(destination, 0, dragging);
-      const movedCard = dragging;
-      dragging = null;
-      selected = null;
-      render(movedCard);
-    });
+  function showPhoto(index) {
+    resetLights[currentPhoto]();
+    photos[currentPhoto].hidden = true;
+    currentPhoto = index;
+    photos[index].hidden = false;
+    photoCount.textContent = `${index + 1} / ${photos.length}`;
+    previousPhoto.disabled = index === 0;
+    nextPhoto.disabled = index === photos.length - 1;
   }
 
-  function updateSelection() {
-    for (const id of order) buttons[id].setAttribute('aria-pressed', String(id === selected));
-  }
-
-  function render(focusCard) {
-    board.replaceChildren(...order.map(id => buttons[id]));
-    updateSelection();
-    status.textContent = focusCard ? `Pořadí: ${order.map(id => cards[id].name).join(', ')}.` : '';
-    if (focusCard) buttons[focusCard].focus();
-  }
-
-  function reset() {
-    order = [...initialOrder];
-    selected = null;
-    dragging = null;
-    render();
-  }
+  previousPhoto.addEventListener('click', () => {
+    showPhoto(currentPhoto - 1);
+    if (previousPhoto.disabled) nextPhoto.focus();
+  });
+  nextPhoto.addEventListener('click', () => {
+    showPhoto(currentPhoto + 1);
+    if (nextPhoto.disabled) previousPhoto.focus();
+  });
 
   function showFoundCode() {
     foundCode.textContent = [...solution].map((digit, index) => found.has(index) ? digit : '＿').join(' ');
   }
 
-  const resetLights = Array.from(flashlight.querySelectorAll('.photo'), photo => {
-    const marks = Array.from(photo.querySelectorAll('.mark'), mark => {
-      const slot = Number(mark.dataset.slot);
-      mark.querySelector('b').textContent = solution[slot];
-      return {
-        element: mark,
-        slot,
-        x: parseFloat(mark.style.getPropertyValue('--x')) / 100,
-        y: parseFloat(mark.style.getPropertyValue('--y')) / 100,
-      };
-    });
+  const resetLights = photos.map(photo => {
+    const mark = photo.querySelector('.mark');
+    const slot = Number(mark.dataset.slot);
+    const markX = parseFloat(mark.style.getPropertyValue('--x')) / 100;
+    const markY = parseFloat(mark.style.getPropertyValue('--y')) / 100;
+    mark.querySelector('b').textContent = solution[slot];
     let x = .5;
     let y = .5;
     let activePointer = null;
@@ -240,19 +171,17 @@
       photo.style.setProperty('--beam-y', `${y * 100}%`);
       photo.classList.add('lit');
       const { width, height } = photo.getBoundingClientRect();
-      for (const mark of marks) {
-        const visible = Math.hypot((mark.x - x) * width, (mark.y - y) * height) <= 34;
-        mark.element.hidden = !visible;
-        if (visible && !found.has(mark.slot)) {
-          found.add(mark.slot);
-          showFoundCode();
-        }
+      const visible = Math.hypot((markX - x) * width, (markY - y) * height) <= 24;
+      mark.hidden = !visible;
+      if (visible && !found.has(slot)) {
+        found.add(slot);
+        showFoundCode();
       }
     }
 
     function darken() {
       photo.classList.remove('lit');
-      for (const mark of marks) mark.element.hidden = true;
+      mark.hidden = true;
     }
 
     function aimPointer(event) {
@@ -282,7 +211,7 @@
     photo.addEventListener('focus', () => illuminate(x, y));
     photo.addEventListener('blur', darken);
     photo.addEventListener('keydown', event => {
-      const moves = { ArrowLeft: [-.08, 0], ArrowRight: [.08, 0], ArrowUp: [0, -.08], ArrowDown: [0, .08] };
+      const moves = { ArrowLeft: [-.05, 0], ArrowRight: [.05, 0], ArrowUp: [0, -.05], ArrowDown: [0, .05] };
       const move = moves[event.key];
       if (!move) return;
       event.preventDefault();
@@ -379,24 +308,15 @@
     document.querySelector('#gift-title').focus();
   });
 
-  document.querySelector('#reset').addEventListener('click', () => {
-    reset();
-    status.textContent = 'Kartičky jsou zpátky na původních místech.';
-  });
-
   document.querySelector('#replay').addEventListener('click', () => {
-    reset();
     wheelSetters.forEach(setDigit => setDigit(0));
     found.clear();
     showFoundCode();
-    resetLights.forEach(resetLight => resetLight());
-    flashlight.open = false;
+    showPhoto(0);
     gift.hidden = true;
     puzzle.hidden = false;
-    document.querySelector('#clues').focus();
+    document.querySelector('#flashlight-title').focus();
   });
-
-  render();
 </script>
 </body>
 </html>
