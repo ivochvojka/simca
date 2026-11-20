@@ -51,6 +51,19 @@
   #safe-status { min-height: 1.5em; color: #ff969b; }
   button:focus-visible { outline: 3px solid #ff969b; outline-offset: 3px; }
   #status { min-height: 1.5em; color: #ff969b; }
+  .flashlight { margin-top: 1.25rem; border-block: 1px solid #555; padding: .75rem 0; }
+  .flashlight summary { cursor: pointer; font-weight: 700; }
+  .flashlight summary::marker { color: #ff6269; }
+  .flashlight summary:focus-visible, .photo:focus-visible { outline: 3px solid #ff969b; outline-offset: 3px; }
+  .photos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .75rem; margin-top: .85rem; }
+  .photo { position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 3 / 2; border: 1px solid #777; border-radius: .5rem; background: #222; touch-action: none; user-select: none; cursor: crosshair; }
+  .photo img { display: block; width: 100%; height: 100%; object-fit: cover; filter: grayscale(1); pointer-events: none; }
+  .photo::after { content: ""; position: absolute; z-index: 1; inset: 0; background: #090909d9; pointer-events: none; }
+  .photo.lit::after { background: radial-gradient(circle 66px at var(--beam-x) var(--beam-y), transparent 63%, #090909d9 100%); }
+  .mark { position: absolute; z-index: 2; left: var(--x); top: var(--y); transform: translate(-50%, -50%); display: grid; justify-items: center; gap: .2rem; min-width: 2.3rem; padding: .25rem; border: 1px solid #ff777e; border-radius: .3rem; background: #151515; color: #fff; font: 700 1.25rem/1 ui-monospace, monospace; pointer-events: none; }
+  .mark[hidden] { display: none; }
+  .mark span { color: #ff969b; font-size: .64rem; }
+  .found-code { font: 700 1.15rem/1.5 ui-monospace, monospace; letter-spacing: .16em; color: #ffb3b8; }
   #gift { text-align: center; background: #303030; color: #f5f5f5; }
   #gift button { margin: 1rem auto 0; color: #f5f5f5; }
   #gift button:focus-visible { outline-color: #a82029; }
@@ -61,7 +74,7 @@
   <header>
     <div class="envelope" aria-hidden="true"><span>♥</span></div>
     <h1>Tajemství v obálce</h1>
-    <p>Seřaď kartičky podle indicií a číslice zleva doprava nastav na trezoru.</p>
+    <p>Najdi čtyřmístný kód pomocí kartiček nebo baterky a nastav ho na trezoru.</p>
   </header>
 
   <section class="panel" id="puzzle" aria-labelledby="clues">
@@ -71,12 +84,29 @@
       <li>Měsíc je někde vlevo od Klíče.</li>
       <li>Hvězda nesousedí s Měsícem.</li>
     </ul>
-    <p class="instructions" id="instructions">Přetáhni kartičku na jiné místo nebo klepni na dvě kartičky a prohoď je.</p>
+    <p class="instructions" id="instructions">Přetáhni kartičku na jiné místo nebo klepni na dvě kartičky a prohoď je. Kód pak přečti zleva doprava.</p>
     <div class="cards" id="cards" role="group" aria-label="Kartičky s kódem" aria-describedby="instructions"></div>
     <div class="actions">
       <button id="reset" type="button">Vrátit kartičky</button>
     </div>
     <p id="status" role="status"></p>
+    <details class="flashlight" id="flashlight">
+      <summary>Hledat kód baterkou</summary>
+      <p class="instructions" id="flashlight-help">Přejeď prstem nebo myší po obou fotkách. Každá skrývá dvě číslice. Počet teček určuje místo v kódu. Baterkou můžeš hýbat i šipkami na klávesnici.</p>
+      <div class="photos">
+        <div class="photo" tabindex="0" role="group" aria-label="Fotka horského jezera" aria-describedby="flashlight-help">
+          <img src="assets/mountain-lake.jpg" alt="" draggable="false">
+          <div class="mark" data-slot="1" style="--x: 72%; --y: 31%" hidden aria-hidden="true"><b></b><span>●●</span></div>
+          <div class="mark" data-slot="3" style="--x: 24%; --y: 73%" hidden aria-hidden="true"><b></b><span>●●●●</span></div>
+        </div>
+        <div class="photo" tabindex="0" role="group" aria-label="Fotka hor v mracích" aria-describedby="flashlight-help">
+          <img src="assets/cloudy-peaks.jpg" alt="" draggable="false">
+          <div class="mark" data-slot="0" style="--x: 75%; --y: 72%" hidden aria-hidden="true"><b></b><span>●</span></div>
+          <div class="mark" data-slot="2" style="--x: 23%; --y: 25%" hidden aria-hidden="true"><b></b><span>●●●</span></div>
+        </div>
+      </div>
+      <p role="status">Nalezené číslice <span class="found-code" id="found-code">＿ ＿ ＿ ＿</span></p>
+    </details>
     <form class="safe" id="safe" aria-labelledby="safe-title" novalidate>
       <h2 id="safe-title">Trezor</h2>
       <p class="instructions" id="wheel-help">Číslice nastav tažením nahoru nebo dolů.</p>
@@ -105,6 +135,9 @@
   };
   const initialOrder = ['star', 'heart', 'moon', 'key'];
   const solution = '7249';
+  const flashlight = document.querySelector('#flashlight');
+  const foundCode = document.querySelector('#found-code');
+  const found = new Set();
   const board = document.querySelector('#cards');
   const puzzle = document.querySelector('#puzzle');
   const gift = document.querySelector('#gift');
@@ -180,6 +213,88 @@
     dragging = null;
     render();
   }
+
+  function showFoundCode() {
+    foundCode.textContent = [...solution].map((digit, index) => found.has(index) ? digit : '＿').join(' ');
+  }
+
+  const resetLights = Array.from(flashlight.querySelectorAll('.photo'), photo => {
+    const marks = Array.from(photo.querySelectorAll('.mark'), mark => {
+      const slot = Number(mark.dataset.slot);
+      mark.querySelector('b').textContent = solution[slot];
+      return {
+        element: mark,
+        slot,
+        x: parseFloat(mark.style.getPropertyValue('--x')) / 100,
+        y: parseFloat(mark.style.getPropertyValue('--y')) / 100,
+      };
+    });
+    let x = .5;
+    let y = .5;
+    let activePointer = null;
+
+    function illuminate(nextX, nextY) {
+      x = Math.max(0, Math.min(1, nextX));
+      y = Math.max(0, Math.min(1, nextY));
+      photo.style.setProperty('--beam-x', `${x * 100}%`);
+      photo.style.setProperty('--beam-y', `${y * 100}%`);
+      photo.classList.add('lit');
+      const { width, height } = photo.getBoundingClientRect();
+      for (const mark of marks) {
+        const visible = Math.hypot((mark.x - x) * width, (mark.y - y) * height) <= 34;
+        mark.element.hidden = !visible;
+        if (visible && !found.has(mark.slot)) {
+          found.add(mark.slot);
+          showFoundCode();
+        }
+      }
+    }
+
+    function darken() {
+      photo.classList.remove('lit');
+      for (const mark of marks) mark.element.hidden = true;
+    }
+
+    function aimPointer(event) {
+      const { left, top, width, height } = photo.getBoundingClientRect();
+      illuminate((event.clientX - left) / width, (event.clientY - top) / height);
+    }
+
+    photo.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || activePointer !== null) return;
+      activePointer = event.pointerId;
+      photo.setPointerCapture(event.pointerId);
+      aimPointer(event);
+    });
+    photo.addEventListener('pointermove', event => {
+      if (event.pointerId === activePointer || (activePointer === null && event.pointerType === 'mouse')) {
+        aimPointer(event);
+      }
+    });
+    photo.addEventListener('pointerleave', () => {
+      if (activePointer === null) darken();
+    });
+    photo.addEventListener('lostpointercapture', event => {
+      if (event.pointerId !== activePointer) return;
+      activePointer = null;
+      darken();
+    });
+    photo.addEventListener('focus', () => illuminate(x, y));
+    photo.addEventListener('blur', darken);
+    photo.addEventListener('keydown', event => {
+      const moves = { ArrowLeft: [-.08, 0], ArrowRight: [.08, 0], ArrowUp: [0, -.08], ArrowDown: [0, .08] };
+      const move = moves[event.key];
+      if (!move) return;
+      event.preventDefault();
+      illuminate(x + move[0], y + move[1]);
+    });
+
+    return () => {
+      x = .5;
+      y = .5;
+      darken();
+    };
+  });
 
   const digits = [0, 0, 0, 0];
   const wheelSetters = digits.map((_, index) => {
@@ -272,6 +387,10 @@
   document.querySelector('#replay').addEventListener('click', () => {
     reset();
     wheelSetters.forEach(setDigit => setDigit(0));
+    found.clear();
+    showFoundCode();
+    resetLights.forEach(resetLight => resetLight());
+    flashlight.open = false;
     gift.hidden = true;
     puzzle.hidden = false;
     document.querySelector('#clues').focus();
