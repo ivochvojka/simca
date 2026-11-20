@@ -38,8 +38,6 @@
   .safe-door::before { top: 14%; }
   .safe-door::after { bottom: 14%; }
   .wheels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .35rem; max-width: 18rem; margin: 0 auto; }
-  .wheel { display: grid; gap: .25rem; min-width: 0; }
-  .wheel button { min-height: 2.5rem; padding: 0; border: 1px solid #909090; border-radius: .35rem; background: #292929; color: #f5f5f5; line-height: 1; }
   .roller { position: relative; height: 6rem; overflow: hidden; border-radius: .4rem; background: linear-gradient(#121212, #292929 40%, #292929 60%, #121212); box-shadow: inset 0 0 0 1px #858585; touch-action: none; user-select: none; cursor: ns-resize; }
   .roller::before { content: ""; position: absolute; inset: 33.333% .17rem; border-block: 1px solid #d84a54; background: #b6232d26; pointer-events: none; }
   .roller-track { position: absolute; inset: 50% 0 auto; transform: translateY(calc(-50% + var(--offset, 0px))); pointer-events: none; }
@@ -81,7 +79,7 @@
     <p id="status" role="status"></p>
     <form class="safe" id="safe" aria-labelledby="safe-title" novalidate>
       <h2 id="safe-title">Trezor</h2>
-      <p class="instructions" id="wheel-help">Číslice nastav tažením nahoru nebo dolů. Použít můžeš i tlačítka + a −.</p>
+      <p class="instructions" id="wheel-help">Číslice nastav tažením nahoru nebo dolů.</p>
       <div class="safe-body">
         <div class="safe-door">
           <div class="wheels" id="wheels" role="group" aria-label="Čtyřmístný kód" aria-describedby="wheel-help"></div>
@@ -185,16 +183,15 @@
 
   const digits = [0, 0, 0, 0];
   const wheelSetters = digits.map((_, index) => {
-    const wheel = document.createElement('div');
-    wheel.className = 'wheel';
-    wheel.innerHTML = `
-      <button type="button" aria-label="Zvýšit číslici ${index + 1}">+</button>
-      <div class="roller" role="spinbutton" tabindex="0" aria-label="Číslice ${index + 1}" aria-valuemin="0" aria-valuemax="9">
-        <div class="roller-track" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
-      </div>
-      <button type="button" aria-label="Snížit číslici ${index + 1}">−</button>`;
-    wheels.append(wheel);
-    const [increase, roller, decrease] = wheel.children;
+    const roller = document.createElement('div');
+    roller.className = 'roller';
+    roller.tabIndex = 0;
+    roller.setAttribute('role', 'spinbutton');
+    roller.setAttribute('aria-label', `Číslice ${index + 1}`);
+    roller.setAttribute('aria-valuemin', '0');
+    roller.setAttribute('aria-valuemax', '9');
+    roller.innerHTML = '<div class="roller-track" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>';
+    wheels.append(roller);
     const [track] = roller.children;
     const rows = Array.from(track.children);
     let drag = null;
@@ -218,8 +215,6 @@
       safeStatus.textContent = '';
     }
 
-    increase.addEventListener('click', () => setDigit(digits[index] + 1));
-    decrease.addEventListener('click', () => setDigit(digits[index] - 1));
     roller.addEventListener('keydown', event => {
       if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
       event.preventDefault();
