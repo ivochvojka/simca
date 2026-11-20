@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tajemství v obálce</title>
+<style>
+  :root { color-scheme: dark; font: 100%/1.5 system-ui, sans-serif; color: #f8eef3; background: #211525; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% 10%, #4d2744, #211525 68%); }
+  main { width: min(100% - 2rem, 36rem); margin: auto; padding: clamp(2rem, 7vh, 5rem) 0 3rem; }
+  header { text-align: center; margin-bottom: 2rem; }
+  h1, h2 { font-family: Georgia, serif; font-weight: normal; line-height: 1.1; margin: 0; }
+  h1 { font-size: clamp(2.5rem, 9vw, 4.5rem); }
+  h2 { font-size: 1.7rem; }
+  p { margin: .7rem 0 0; }
+  header p, .instructions { color: #e2c9db; }
+  .envelope { display: grid; place-items: center; position: relative; overflow: hidden; isolation: isolate; width: 5.5rem; height: 3.7rem; margin: 0 auto 1.1rem; border-radius: .35rem; background: #ac6979; box-shadow: 0 .5rem 1.5rem #160c1b66; }
+  .envelope::before { content: ""; position: absolute; z-index: -1; inset: 0; background: #edb5bb; clip-path: polygon(0 0, 100% 0, 50% 69%); }
+  .envelope span { border-radius: 50%; padding: .25rem .48rem; margin-top: .6rem; background: #702b54; color: #ffdbe5; }
+  .panel { background: #2d2032; border: 1px solid #75576f; border-radius: 1rem; padding: clamp(1rem, 4vw, 1.8rem); }
+  ul { padding-left: 1.3rem; margin: .8rem 0 1.5rem; }
+  li + li { margin-top: .25rem; }
+  .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(.3rem, 1.8vw, .65rem); margin-top: .8rem; }
+  button { font: inherit; cursor: pointer; }
+  .card { padding: .65rem .12rem; border: 2px solid transparent; border-radius: .65rem; background: #f6e4db; color: #45263b; display: grid; justify-items: center; gap: .05rem; cursor: grab; }
+  .card[aria-pressed=true] { border-color: #a33569; background: #ffc4db; }
+  .symbol { font-size: 1.6rem; line-height: 1; }
+  .digit { font: bold 1.8rem Georgia, serif; }
+  .name { font-size: .875rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
+  .actions button { border-radius: .5rem; padding: .6rem .9rem; border: 1px solid #9b718e; color: inherit; background: transparent; }
+  .actions .primary { background: #f1b8cc; border-color: #f1b8cc; color: #352033; font-weight: 700; }
+  button:focus-visible, summary:focus-visible { outline: 3px solid #ffd0e5; outline-offset: 3px; }
+  #status { min-height: 1.5em; color: #ffd0e5; }
+  details { margin-top: .75rem; }
+  summary { cursor: pointer; width: fit-content; text-decoration: underline; text-underline-offset: .24em; }
+  #gift { text-align: center; background: #f6e4db; color: #45263b; }
+  #gift button { margin: 1rem auto 0; color: #45263b; }
+  #gift button:focus-visible { outline-color: #702b54; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="envelope" aria-hidden="true"><span>♥</span></div>
+    <h1>Tajemství v obálce</h1>
+    <p>Čtyři kartičky ukrývají kód k otevření obálky.</p>
+  </header>
+
+  <section class="panel" id="puzzle" aria-labelledby="clues">
+    <h2 id="clues" tabindex="-1">Indicie</h2>
+    <ul>
+      <li>Klíč leží hned vlevo od Srdce.</li>
+      <li>Měsíc je někde vlevo od Klíče.</li>
+      <li>Hvězda nesousedí s Měsícem.</li>
+    </ul>
+    <p class="instructions" id="instructions">Přetáhni kartičku na jiné místo nebo klepni na dvě kartičky a prohoď je.</p>
+    <div class="cards" id="cards" role="group" aria-label="Kartičky s kódem" aria-describedby="instructions"></div>
+    <div class="actions">
+      <button class="primary" id="check" type="button">Otevřít obálku</button>
+      <button id="reset" type="button">Vrátit kartičky</button>
+    </div>
+    <p id="status" role="status"></p>
+    <details id="hint">
+      <summary>Nápověda</summary>
+      <p>Zkus brát Klíč a Srdce jako jednu kartičku.</p>
+    </details>
+  </section>
+
+  <section class="panel" id="gift" aria-labelledby="gift-title" hidden>
+    <h2 id="gift-title" tabindex="-1">Obálka je otevřená!</h2>
+    <p>Sem později přijde překvapení.</p>
+    <div class="actions"><button id="replay" type="button">Hrát znovu</button></div>
+  </section>
+</main>
+<script>
+  const cards = {
+    star: { name: 'Hvězda', symbol: '✦', digit: '9' },
+    heart: { name: 'Srdce', symbol: '♥', digit: '4' },
+    moon: { name: 'Měsíc', symbol: '☾', digit: '7' },
+    key: { name: 'Klíč', symbol: '⚿', digit: '2' },
+  };
+  const initialOrder = ['star', 'heart', 'moon', 'key'];
+  const solution = '7249';
+  const board = document.querySelector('#cards');
+  const puzzle = document.querySelector('#puzzle');
+  const gift = document.querySelector('#gift');
+  const status = document.querySelector('#status');
+  const hint = document.querySelector('#hint');
+  const buttons = {};
+  let order = [...initialOrder];
+  let selected = null;
+  let dragging = null;
+
+  for (const [id, card] of Object.entries(cards)) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'card';
+    button.draggable = true;
+    button.innerHTML = `<span class="symbol" aria-hidden="true">${card.symbol}</span><span class="digit">${card.digit}</span><span class="name">${card.name}</span>`;
+    buttons[id] = button;
+
+    button.addEventListener('click', () => {
+      if (selected !== null && selected !== id) {
+        const first = order.indexOf(selected);
+        const second = order.indexOf(id);
+        [order[first], order[second]] = [order[second], order[first]];
+        selected = null;
+        render(id);
+        return;
+      }
+      selected = selected === id ? null : id;
+      updateSelection();
+      status.textContent = selected ? 'Vyber kartičku, se kterou ji chceš prohodit.' : '';
+    });
+
+    button.addEventListener('dragstart', event => {
+      dragging = id;
+      event.dataTransfer.setData('text/plain', id);
+      event.dataTransfer.effectAllowed = 'move';
+    });
+    button.addEventListener('dragend', () => { dragging = null; });
+    button.addEventListener('dragover', event => {
+      if (dragging && dragging !== id) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+      }
+    });
+    button.addEventListener('drop', event => {
+      if (!dragging || dragging === id) return;
+      event.preventDefault();
+      const destination = order.indexOf(id);
+      order.splice(order.indexOf(dragging), 1);
+      order.splice(destination, 0, dragging);
+      const movedCard = dragging;
+      dragging = null;
+      selected = null;
+      render(movedCard);
+    });
+  }
+
+  function updateSelection() {
+    for (const id of order) buttons[id].setAttribute('aria-pressed', String(id === selected));
+  }
+
+  function render(focusCard) {
+    board.replaceChildren(...order.map(id => buttons[id]));
+    updateSelection();
+    status.textContent = focusCard ? `Pořadí: ${order.map(id => cards[id].name).join(', ')}.` : '';
+    if (focusCard) buttons[focusCard].focus();
+  }
+
+  function reset() {
+    order = [...initialOrder];
+    selected = null;
+    dragging = null;
+    render();
+  }
+
+  document.querySelector('#check').addEventListener('click', () => {
+    if (order.map(id => cards[id].digit).join('') !== solution) {
+      status.textContent = 'Obálka je pořád zamčená. Zkus jiné pořadí.';
+      return;
+    }
+    puzzle.hidden = true;
+    gift.hidden = false;
+    document.querySelector('#gift-title').focus();
+  });
+
+  document.querySelector('#reset').addEventListener('click', () => {
+    reset();
+    status.textContent = 'Kartičky jsou zpátky na původních místech.';
+  });
+
+  document.querySelector('#replay').addEventListener('click', () => {
+    reset();
+    hint.open = false;
+    gift.hidden = true;
+    puzzle.hidden = false;
+    document.querySelector('#clues').focus();
+  });
+
+  render();
+</script>
+</body>
+</html>
